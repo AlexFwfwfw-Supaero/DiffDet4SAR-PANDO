@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Training outputs
+output_*/
+model_*.pth
+last_checkpoint
+checkpoint
+*.log
+events.out.tfevents.*
+metrics.json
+
+# Visualizations
+demo_visualizations/
+visualizations/
+visualizations_*/
+
+# Dataset (upload separately or download on PANDO)
+../ATRNet-STAR-data/
+
+# Local convenience scripts (not needed on PANDO)
+demo.py
+demo_visualization.py
+flatten_dataset.py
+test_dataset.py
+monitor_and_train.sh
+train_atrnet.sh
+
+# Git clones
+DL-Project/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Compressed files
+*.7z
+*.7z.*
+*.zip
+*.tar.gz
+
+
+.env
+.env.local
+*.token
