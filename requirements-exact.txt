@@ -1,0 +1,26 @@
+# DiffDet4SAR - Exact Working Versions
+# These are the tested versions that work with the current setup
+
+# PyTorch with CUDA 12.4 support
+torch==2.5.1
+torchvision==0.20.1
+torchaudio==2.5.1
+
+# Core ML/CV libraries
+numpy==2.2.6
+pillow==12.1.0
+opencv-python==4.13.0.92
+
+# Model dependencies
+timm==1.0.24
+tqdm==4.67.3
+pycocotools==2.0.11
+
+# Training monitoring
+tensorboard==2.20.0
+
+# Visualization (optional - only for visualize_detections.py --show)
+matplotlib==3.10.8
+
+# Note: detectron2 and fvcore are included in-tree (DiffDet4SAR/detectron2/ and DiffDet4SAR/fvcore/)
+# No pip installation needed for these packages

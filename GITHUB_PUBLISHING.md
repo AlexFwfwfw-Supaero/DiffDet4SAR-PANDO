@@ -117,7 +117,7 @@ pip install torch torchvision opencv-python timm tqdm scipy pycocotools tensorbo
 # Clone and download dataset
 git clone https://github.com/YOUR_USERNAME/DiffDet4SAR.git
 cd DiffDet4SAR
-python -c "from huggingface_hub import snapshot_download; snapshot_download('ATRNet-STAR-data', repo_type='dataset', local_dir='../ATRNet-STAR-data')"
+python -c "from huggingface_hub import snapshot_download; snapshot_download('waterdisappear/ATRNet-STAR', repo_type='dataset', local_dir='../ATRNet-STAR-data')"
 
 # Train locally
 python train_net.py --num-gpus 1 --config-file configs/diffdet.atrnet.res50.yaml
@@ -135,7 +135,7 @@ bash pando/deploy_lightweight.sh --full
 cd ..  # Go to parent directory
 python -c "
 from huggingface_hub import snapshot_download
-snapshot_download('ATRNet-STAR-data', repo_type='dataset', local_dir='ATRNet-STAR-data')
+snapshot_download('waterdisappear/ATRNet-STAR', repo_type='dataset', local_dir='ATRNet-STAR-data')
 "
 ```
 

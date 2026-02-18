@@ -62,9 +62,9 @@ if not token:
     print('  Or login with: huggingface-cli login')
     sys.exit(1)
 
-print('Downloading ATRNet-STAR-data...')
+print('Downloading ATRNet-STAR dataset...')
 snapshot_download(
-    repo_id='ATRNet-STAR-data',
+    repo_id='waterdisappear/ATRNet-STAR',
     repo_type='dataset',
     local_dir='.',
     token=token
