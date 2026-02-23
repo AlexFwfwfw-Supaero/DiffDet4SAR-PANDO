@@ -2,8 +2,15 @@
 ###############################################################################
 # Download ATRNet-STAR Dataset on PANDO (runs ON the supercomputer)
 #
-# This script downloads the dataset directly to PANDO using HuggingFace CLI
-# Much faster than uploading 9GB from your laptop!
+# This script downloads ONLY the compressed dataset files needed for training.
+# Downloads ~9GB of compressed data (extracts to ~15GB)
+# Much faster than uploading from your laptop!
+#
+# Space Requirements:
+#   - Compressed files: ~9 GB
+#   - Extracted data: ~15 GB
+#   - Total needed before cleanup: ~24 GB
+#   - After extraction & cleanup: ~15 GB
 #
 # Usage (ON PANDO):
 #   cd ~/DiffDet4SAR-project
@@ -50,9 +57,9 @@ if [ ! -z "$1" ]; then
     echo "  Using provided HuggingFace token"
 fi
 
-# Download using huggingface-cli
-python3 -c "
-from huggingface_hub import snapshot_download
+# Download only the compressed data files (not the entire repo)
+python3 << 'PYSCRIPT'
+from huggingface_hub import hf_hub_download
 import os
 import sys
 
@@ -62,15 +69,35 @@ if not token:
     print('  Or login with: huggingface-cli login')
     sys.exit(1)
 
-print('Downloading ATRNet-STAR dataset...')
-snapshot_download(
-    repo_id='waterdisappear/ATRNet-STAR',
-    repo_type='dataset',
-    local_dir='.',
-    token=token
-)
-print('✓ Download complete!')
-"
+# Files to download (only the compressed data we need)
+files_to_download = [
+    'Ground_Range/annotation_coco/SOC_40classes/annotations/train.json',
+    'Ground_Range/annotation_coco/SOC_40classes/annotations/test.json',
+    'Ground_Range/Amplitude_8bit/SOC_40classes/train.7z.001',
+    'Ground_Range/Amplitude_8bit/SOC_40classes/train.7z.002',
+    'Ground_Range/Amplitude_8bit/SOC_40classes/train.7z.003',
+    'Ground_Range/Amplitude_8bit/SOC_40classes/test.7z.001',
+    'Ground_Range/Amplitude_8bit/SOC_40classes/test.7z.002',
+]
+
+try:
+    for file_path in files_to_download:
+        print(f"\nDownloading: {file_path}")
+        hf_hub_download(
+            repo_id='waterdisappear/ATRNet-STAR',
+            filename=file_path,
+            repo_type='dataset',
+            local_dir='.',
+            resume_download=True,
+            token=token
+        )
+        file_size = os.path.getsize(file_path) / (1024**3)
+        print(f"  ✓ Size: {file_size:.2f} GB")
+    print('\n✓ Download complete!')
+except Exception as e:
+    print(f'✗ Error: {e}')
+    sys.exit(1)
+PYSCRIPT
 
 echo ""
 echo "[3/4] Extracting compressed files..."
@@ -102,7 +129,19 @@ if [ -f "test.7z.001" ]; then
 fi
 
 echo ""
-echo "[4/4] Flattening directory structure..."
+echo "[4/4] Cleaning up compressed files to save space..."
+# Remove .7z files after extraction (they're no longer needed)
+if [ -f "train.7z.001" ]; then
+    echo "  Removing compressed train files..."
+    rm -f train.7z.* 2>/dev/null || true
+fi
+if [ -f "test.7z.001" ]; then
+    echo "  Removing compressed test files..."
+    rm -f test.7z.* 2>/dev/null || true
+fi
+
+echo ""
+echo "[5/5] Flattening directory structure..."
 # Flatten train directory (move all .tif from subdirs to root)
 if [ -d "train" ]; then
     cd train
