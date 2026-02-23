@@ -36,14 +36,20 @@ echo "   Cancel:   scancel $SLURM_JOB_ID"
 echo "   Logs:     tail -f diffdet4sar_${SLURM_JOB_ID}.out"
 echo ""
 
-# --- Print GPU info via nvidia-smi (works at shell level, no Python needed) ---
-echo ">>> GPU Info:"
-nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader
-echo ""
-
 # --- Environment setup ---
 module load python/2023-3
 source activate diffdet4sar
+
+# --- Print GPU info (after modules loaded, with fallback) ---
+echo ">>> GPU Info:"
+if command -v nvidia-smi &> /dev/null; then
+    nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader
+else
+    echo "  nvidia-smi not found"
+    echo "  CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
+    echo "  SLURM_JOB_GPUS=$SLURM_JOB_GPUS"
+fi
+echo ""
 
 # Set proxy (needed for downloading pretrained weights on first run)
 export https_proxy=http://proxy.isae.fr:3128
@@ -52,8 +58,9 @@ export http_proxy=http://proxy.isae.fr:3128
 # Navigate to project directory
 cd ~/DiffDet4SAR-project/DiffDet4SAR
 
-# Add in-tree detectron2 and fvcore to Python path (not pip-installed on PANDO)
-export PYTHONPATH="$HOME/DiffDet4SAR-project/DiffDet4SAR/detectron2:$HOME/DiffDet4SAR-project/DiffDet4SAR/fvcore:$PYTHONPATH"
+# Add DiffDet4SAR/ to Python path so `import detectron2` and `import fvcore` work
+# (detectron2/ and fvcore/ are packages directly inside DiffDet4SAR/)
+export PYTHONPATH="$HOME/DiffDet4SAR-project/DiffDet4SAR:$PYTHONPATH"
 echo "PYTHONPATH: $PYTHONPATH"
 
 # Create output directory
