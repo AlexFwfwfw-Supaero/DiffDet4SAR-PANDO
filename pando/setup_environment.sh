@@ -70,10 +70,10 @@ cd ~/DiffDet4SAR-project/DiffDet4SAR
 #   DiffDet4SAR/fvcore/fvcore/__init__.py          (repo/package)
 # Python needs the REPO folders in PYTHONPATH to find the packages inside.
 
-PYTHONPATH_LINE='export PYTHONPATH="$HOME/DiffDet4SAR-project/DiffDet4SAR/detectron2:$HOME/DiffDet4SAR-project/DiffDet4SAR/fvcore:$PYTHONPATH"'
+PYTHONPATH_LINE='export PYTHONPATH="$HOME/DiffDet4SAR-project/DiffDet4SAR-PANDO:$PYTHONPATH"'
 
 # Persist to ~/.bashrc so it's set on every login and sbatch job
-if ! grep -q "DiffDet4SAR/detectron2" ~/.bashrc; then
+if ! grep -q "DiffDet4SAR-project/DiffDet4SAR" ~/.bashrc; then
     echo "" >> ~/.bashrc
     echo "# DiffDet4SAR in-tree detectron2/fvcore" >> ~/.bashrc
     echo "$PYTHONPATH_LINE" >> ~/.bashrc
@@ -83,7 +83,7 @@ else
 fi
 
 # Set for current session too
-export PYTHONPATH="$HOME/DiffDet4SAR-project/DiffDet4SAR/detectron2:$HOME/DiffDet4SAR-project/DiffDet4SAR/fvcore:$PYTHONPATH"
+export PYTHONPATH="$HOME/DiffDet4SAR-project/DiffDet4SAR-PANDO:$PYTHONPATH"
 
 # Verify imports work
 python -c "
