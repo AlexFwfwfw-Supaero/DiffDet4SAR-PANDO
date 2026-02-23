@@ -42,6 +42,10 @@ export http_proxy=http://proxy.isae.fr:3128
 # Navigate to project directory
 cd ~/DiffDet4SAR-project/DiffDet4SAR
 
+# Add in-tree detectron2 and fvcore to Python path (not pip-installed on PANDO)
+export PYTHONPATH="$HOME/DiffDet4SAR-project/DiffDet4SAR/detectron2:$HOME/DiffDet4SAR-project/DiffDet4SAR/fvcore:$PYTHONPATH"
+echo "PYTHONPATH: $PYTHONPATH"
+
 # Create log and output directories
 mkdir -p output_atrnet_star_pando
 mkdir -p pando/slurm_logs

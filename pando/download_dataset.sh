@@ -13,8 +13,15 @@
 #   - After extraction & cleanup: ~15 GB
 #
 # Usage (ON PANDO):
-#   cd ~/DiffDet4SAR-project
-#   bash DiffDet4SAR/pando/download_dataset.sh
+#   Default location:
+#     bash DiffDet4SAR/pando/download_dataset.sh hf_token
+#     
+#   Custom location:
+#     bash DiffDet4SAR/pando/download_dataset.sh /custom/path hf_token
+#     
+#   Or set as environment variable:
+#     export HF_TOKEN=your_token
+#     bash DiffDet4SAR/pando/download_dataset.sh /custom/path
 ###############################################################################
 
 set -e
@@ -28,11 +35,19 @@ echo ""
 export https_proxy=http://proxy.isae.fr:3128
 export http_proxy=http://proxy.isae.fr:3128
 
-# Load Python module
-module load python/2023-3 || true
+# Parse arguments  
+# Usage: script.sh [/path/to/dataset] [hf_token]
+DATASET_DIR="${1:-$HOME/DiffDet4SAR-project/ATRNet-STAR-data}"
+HF_TOKEN_ARG="${2}"
+
+echo "=============================================="
+echo " Downloading ATRNet-STAR Dataset on PANDO"
+echo "=============================================="
+echo ""
+echo " Download location: $DATASET_DIR"
+echo ""
 
 # Check if dataset already exists
-DATASET_DIR="$HOME/DiffDet4SAR-project/ATRNet-STAR-data"
 if [ -d "$DATASET_DIR/Ground_Range/Amplitude_8bit/SOC_40classes/train" ]; then
     echo "✓ Dataset already exists at: $DATASET_DIR"
     echo "  Skipping download..."
@@ -52,14 +67,16 @@ echo "  This will download ~9GB of data (faster on PANDO network!)"
 echo ""
 
 # Set HuggingFace token (if provided as argument)
-if [ ! -z "$1" ]; then
-    export HF_TOKEN="$1"
+if [ ! -z "$HF_TOKEN_ARG" ]; then
+    export HF_TOKEN="$HF_TOKEN_ARG"
     echo "  Using provided HuggingFace token"
 fi
 
-# Download only the compressed data files (not the entire repo)
+# Download only Ground_Range folder using pattern matching
+# Usage: DATASET_DIR custom/path or as 1st arg
+# HF_TOKEN as 2nd arg or environment variable
 python3 << 'PYSCRIPT'
-from huggingface_hub import hf_hub_download
+from huggingface_hub import snapshot_download
 import os
 import sys
 
@@ -69,31 +86,18 @@ if not token:
     print('  Or login with: huggingface-cli login')
     sys.exit(1)
 
-# Files to download (only the compressed data we need)
-files_to_download = [
-    'Ground_Range/annotation_coco/SOC_40classes/annotations/train.json',
-    'Ground_Range/annotation_coco/SOC_40classes/annotations/test.json',
-    'Ground_Range/Amplitude_8bit/SOC_40classes/train.7z.001',
-    'Ground_Range/Amplitude_8bit/SOC_40classes/train.7z.002',
-    'Ground_Range/Amplitude_8bit/SOC_40classes/train.7z.003',
-    'Ground_Range/Amplitude_8bit/SOC_40classes/test.7z.001',
-    'Ground_Range/Amplitude_8bit/SOC_40classes/test.7z.002',
-]
-
 try:
-    for file_path in files_to_download:
-        print(f"\nDownloading: {file_path}")
-        hf_hub_download(
-            repo_id='waterdisappear/ATRNet-STAR',
-            filename=file_path,
-            repo_type='dataset',
-            local_dir='.',
-            resume_download=True,
-            token=token
-        )
-        file_size = os.path.getsize(file_path) / (1024**3)
-        print(f"  ✓ Size: {file_size:.2f} GB")
-    print('\n✓ Download complete!')
+    print("Downloading Ground_Range folder from HuggingFace...")
+    snapshot_download(
+        repo_id='waterdisappear/ATRNet-STAR',
+        repo_type='dataset',
+        local_dir='.',
+        local_dir_use_symlinks=False,  # Force actual copies, not cache symlinks
+        allow_patterns='Ground_Range/**',
+        ignore_patterns=['*.md', 'README*', '.gitignore'],
+        token=token
+    )
+    print('✓ Download complete!')
 except Exception as e:
     print(f'✗ Error: {e}')
     sys.exit(1)

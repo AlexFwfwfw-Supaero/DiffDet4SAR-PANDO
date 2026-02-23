@@ -65,11 +65,28 @@ echo ""
 echo "[5/5] Setting up project packages..."
 cd ~/DiffDet4SAR-project/DiffDet4SAR
 
-# The project includes its own detectron2 and fvcore in-tree, no pip install needed
-# Just verify imports work
+# detectron2 and fvcore are in-tree repo folders:
+#   DiffDet4SAR/detectron2/detectron2/__init__.py  (repo/package)
+#   DiffDet4SAR/fvcore/fvcore/__init__.py          (repo/package)
+# Python needs the REPO folders in PYTHONPATH to find the packages inside.
+
+PYTHONPATH_LINE='export PYTHONPATH="$HOME/DiffDet4SAR-project/DiffDet4SAR/detectron2:$HOME/DiffDet4SAR-project/DiffDet4SAR/fvcore:$PYTHONPATH"'
+
+# Persist to ~/.bashrc so it's set on every login and sbatch job
+if ! grep -q "DiffDet4SAR/detectron2" ~/.bashrc; then
+    echo "" >> ~/.bashrc
+    echo "# DiffDet4SAR in-tree detectron2/fvcore" >> ~/.bashrc
+    echo "$PYTHONPATH_LINE" >> ~/.bashrc
+    echo "  ✓ PYTHONPATH added to ~/.bashrc"
+else
+    echo "  ✓ PYTHONPATH already in ~/.bashrc"
+fi
+
+# Set for current session too
+export PYTHONPATH="$HOME/DiffDet4SAR-project/DiffDet4SAR/detectron2:$HOME/DiffDet4SAR-project/DiffDet4SAR/fvcore:$PYTHONPATH"
+
+# Verify imports work
 python -c "
-import sys
-sys.path.insert(0, '.')
 import torch
 print(f'  PyTorch: {torch.__version__}')
 print(f'  CUDA available: {torch.cuda.is_available()}')
@@ -81,7 +98,7 @@ print(f'  detectron2: OK')
 from diffusiondet import DiffusionDet
 print(f'  diffusiondet: OK')
 print()
-print('  ✓ All imports successful!')
+print('  All imports successful!')
 "
 
 echo ""
