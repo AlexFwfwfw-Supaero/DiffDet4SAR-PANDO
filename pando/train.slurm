@@ -5,17 +5,19 @@
 # Submit with:  sbatch pando/train.slurm
 # Monitor with: squeue -u $USER
 # Cancel with:  scancel <JOB_ID>
-# View logs:    tail -f output_atrnet_star_pando/training.log
+# View logs:    tail -f diffdet4sar_<JOB_ID>.out
 ###############################################################################
 
 #SBATCH --job-name=diffdet4sar
 #SBATCH --partition=gpu
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
 #SBATCH --time=24:00:00
-#SBATCH --output=pando/slurm_logs/train_%j.out
-#SBATCH --error=pando/slurm_logs/train_%j.err
+#SBATCH --output=%x_%j.out
+#SBATCH --error=%x_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=a.jesus@isae-supaero.fr
 
@@ -46,9 +48,8 @@ cd ~/DiffDet4SAR-project/DiffDet4SAR
 export PYTHONPATH="$HOME/DiffDet4SAR-project/DiffDet4SAR/detectron2:$HOME/DiffDet4SAR-project/DiffDet4SAR/fvcore:$PYTHONPATH"
 echo "PYTHONPATH: $PYTHONPATH"
 
-# Create log and output directories
+# Create output directory
 mkdir -p output_atrnet_star_pando
-mkdir -p pando/slurm_logs
 
 # Print GPU info
 python3 << 'PYCODE'
