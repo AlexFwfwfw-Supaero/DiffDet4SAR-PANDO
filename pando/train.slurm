@@ -51,14 +51,15 @@ mkdir -p output_atrnet_star_pando
 mkdir -p pando/slurm_logs
 
 # Print GPU info
-python -c "
+python3 << 'PYCODE'
 import torch
-print(f'PyTorch {torch.__version__}')
-print(f'CUDA available: {torch.cuda.is_available()}')
+print("PyTorch " + torch.__version__)
+print("CUDA available: " + str(torch.cuda.is_available()))
 if torch.cuda.is_available():
-    print(f'GPU: {torch.cuda.get_device_name(0)}')
-    print(f'VRAM: {torch.cuda.get_device_properties(0).total_mem / 1e9:.1f} GB')
-"
+    print("GPU: " + torch.cuda.get_device_name(0))
+    vram = torch.cuda.get_device_properties(0).total_memory / 1e9
+    print("VRAM: " + str(round(vram, 1)) + " GB")
+PYCODE
 
 echo ""
 echo "Starting training..."
