@@ -16,7 +16,6 @@ build/
 output_*/
 model_*.pth
 last_checkpoint
-checkpoint
 *.log
 events.out.tfevents.*
 metrics.json
