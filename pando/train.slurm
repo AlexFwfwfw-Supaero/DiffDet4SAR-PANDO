@@ -10,11 +10,9 @@
 
 #SBATCH --job-name=diffdet4sar
 #SBATCH --partition=gpu
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
 #SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=32G
+#SBATCH -n 12
+#SBATCH --mem=64G
 #SBATCH --time=24:00:00
 #SBATCH --output=%x_%j.out
 #SBATCH --error=%x_%j.err
@@ -28,9 +26,19 @@ echo " DiffDet4SAR Training - PANDO"
 echo "=============================================="
 echo " Job ID:    $SLURM_JOB_ID"
 echo " Node:      $SLURM_NODELIST"
-echo " GPUs:      $SLURM_GPUS_ON_NODE"
+echo " Tasks:     $SLURM_NTASKS"
 echo " Started:   $(date)"
 echo "=============================================="
+echo ""
+echo " Useful commands (run from a frontend):"
+echo "   Monitor:  squeue -u $USER"
+echo "   Cancel:   scancel $SLURM_JOB_ID"
+echo "   Logs:     tail -f diffdet4sar_${SLURM_JOB_ID}.out"
+echo ""
+
+# --- Print GPU info via nvidia-smi (works at shell level, no Python needed) ---
+echo ">>> GPU Info:"
+nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader
 echo ""
 
 # --- Environment setup ---
@@ -51,18 +59,6 @@ echo "PYTHONPATH: $PYTHONPATH"
 # Create output directory
 mkdir -p output_atrnet_star_pando
 
-# Print GPU info
-python3 << 'PYCODE'
-import torch
-print("PyTorch " + torch.__version__)
-print("CUDA available: " + str(torch.cuda.is_available()))
-if torch.cuda.is_available():
-    print("GPU: " + torch.cuda.get_device_name(0))
-    vram = torch.cuda.get_device_properties(0).total_memory / 1e9
-    print("VRAM: " + str(round(vram, 1)) + " GB")
-PYCODE
-
-echo ""
 echo "Starting training..."
 echo ""
 
