@@ -56,12 +56,16 @@ export https_proxy=http://proxy.isae.fr:3128
 export http_proxy=http://proxy.isae.fr:3128
 
 # Navigate to project directory
-cd ~/DiffDet4SAR-project/DiffDet4SAR
+cd ~/DiffDet4SAR-project/DiffDet4SAR-PANDO
 
 # Add DiffDet4SAR/ to Python path so `import detectron2` and `import fvcore` work
 # (detectron2/ and fvcore/ are packages directly inside DiffDet4SAR/)
-export PYTHONPATH="$HOME/DiffDet4SAR-project/DiffDet4SAR:$PYTHONPATH"
+export PYTHONPATH="$HOME/DiffDet4SAR-project/DiffDet4SAR-PANDO:$PYTHONPATH"
 echo "PYTHONPATH: $PYTHONPATH"
+
+# Tell register_atrnet.py where the dataset lives
+export ATRNET_DATA_DIR="$HOME/DiffDet4SAR-project/ATRNet-STAR-data"
+echo "ATRNET_DATA_DIR: $ATRNET_DATA_DIR"
 
 # Create output directory
 mkdir -p output_atrnet_star_pando

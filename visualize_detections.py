@@ -53,15 +53,36 @@ def setup_cfg(args):
     cfg.freeze()
     return cfg
 
-def get_category_names():
-    """Get ATRNet-STAR category names"""
-    annotation_file = "/media/alexandre/E6AE9051AE901BDD/PIE Code/ATR/ATR-Segmentation/ATRNet-STAR-data/Ground_Range/annotation_coco/SOC_40classes/annotations/train.json"
-    
-    with open(annotation_file, 'r') as f:
+def get_data_base_path(override: str = None) -> Path:
+    """Resolve ATRNet-STAR data directory (CLI > env var > relative default)"""
+    if override:
+        return Path(override).resolve()
+    env = os.environ.get("ATRNET_DATA_DIR")
+    if env:
+        return Path(env).resolve()
+    # Default: ATRNet-STAR-data is a sibling of the DiffDet4SAR folder
+    return (Path(__file__).parent / ".." / ".." / "ATRNet-STAR-data").resolve()
+
+
+def get_category_names(data_dir: str = None) -> dict:
+    """Get ATRNet-STAR category names from the COCO annotation file."""
+    base = get_data_base_path(data_dir)
+    annotation_file = (
+        base
+        / "Ground_Range"
+        / "annotation_coco"
+        / "SOC_40classes"
+        / "annotations"
+        / "train.json"
+    )
+    if not annotation_file.exists():
+        raise FileNotFoundError(
+            f"Annotation file not found: {annotation_file}\n"
+            "Set ATRNET_DATA_DIR env var or pass --data-dir."
+        )
+    with open(annotation_file, "r") as f:
         data = json.load(f)
-    
-    categories = {cat['id']: cat['name'] for cat in data['categories']}
-    return categories
+    return {cat["id"]: cat["name"] for cat in data["categories"]}
 
 def draw_predictions(image, outputs, categories, confidence_threshold=0.3):
     """
@@ -171,7 +192,7 @@ def visualize_samples(args):
     cfg = setup_cfg(args)
     
     # Load category names
-    categories = get_category_names()
+    categories = get_category_names(args.data_dir)
     print(f"✓ Loaded {len(categories)} categories")
     
     # Create predictor
@@ -270,6 +291,9 @@ def main():
                        type=int,
                        default=20,
                        help="Number of images to visualize")
+    parser.add_argument("--data-dir",
+                       default=None,
+                       help="Path to ATRNet-STAR-data root (overrides ATRNET_DATA_DIR env var)")
     parser.add_argument("--confidence-threshold",
                        type=float,
                        default=0.3,
