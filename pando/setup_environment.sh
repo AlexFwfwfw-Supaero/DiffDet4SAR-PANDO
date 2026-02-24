@@ -63,7 +63,7 @@ echo "  ✓ All packages installed"
 # --- Step 5: Install local detectron2 and fvcore ---
 echo ""
 echo "[5/5] Setting up project packages..."
-cd ~/DiffDet4SAR-project/DiffDet4SAR
+# cd ~/DiffDet4SAR-project/DiffDet4SAR
 
 # detectron2 and fvcore are in-tree repo folders:
 #   DiffDet4SAR/detectron2/detectron2/__init__.py  (repo/package)

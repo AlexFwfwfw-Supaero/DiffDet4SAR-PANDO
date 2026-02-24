@@ -14,10 +14,10 @@
 #SBATCH -n 12
 #SBATCH --mem=64G
 #SBATCH --time=24:00:00
-#SBATCH --output=%x_%j.out
-#SBATCH --error=%x_%j.err
+#SBATCH --output=output_atrnet_star_pando/%x_%j.out
+#SBATCH --error=output_atrnet_star_pando/%x_%j.err
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=a.jesus@isae-supaero.fr
+#SBATCH --mail-user=a.jesus
 
 set -e
 
@@ -56,12 +56,15 @@ export https_proxy=http://proxy.isae.fr:3128
 export http_proxy=http://proxy.isae.fr:3128
 
 # Navigate to project directory
-cd ~/DiffDet4SAR-project/DiffDet4SAR
+# cd ~/DiffDet4SAR-project/DiffDet4SAR
 
 # Add DiffDet4SAR/ to Python path so `import detectron2` and `import fvcore` work
 # (detectron2/ and fvcore/ are packages directly inside DiffDet4SAR/)
-export PYTHONPATH="$HOME/DiffDet4SAR-project/DiffDet4SAR:$PYTHONPATH"
+export PYTHONPATH="$HOME/DiffDet4SAR-project/DiffDet4SAR-PANDO:$PYTHONPATH"
 echo "PYTHONPATH: $PYTHONPATH"
+
+export ATRNET_DATA_DIR="$HOME/DiffDet4SAR-project/DiffDet4SAR-PANDO/ATRNet-STAR-data"
+echo "ATRNET_DATA_DIR: $ATRNET_DATA_DIR"
 
 # Create output directory
 mkdir -p output_atrnet_star_pando

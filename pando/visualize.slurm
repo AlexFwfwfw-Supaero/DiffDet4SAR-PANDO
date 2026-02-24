@@ -31,7 +31,6 @@ echo "=============================================="
 module load python/2023-3
 source activate diffdet4sar
 
-cd ~/DiffDet4SAR-project/DiffDet4SAR
 mkdir -p pando/slurm_logs
 
 # Find the best/latest model checkpoint

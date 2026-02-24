@@ -19,6 +19,7 @@ last_checkpoint
 *.log
 events.out.tfevents.*
 metrics.json
+ATRNet-STAR-data
 
 # Visualizations
 demo_visualizations/
