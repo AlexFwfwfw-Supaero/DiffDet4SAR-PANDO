@@ -27,11 +27,19 @@ echo " Job ID: $SLURM_JOB_ID"
 echo " Started: $(date)"
 echo "=============================================="
 
+export PYTHONPATH="$HOME/DiffDet4SAR-project/DiffDet4SAR-PANDO:$PYTHONPATH"
+echo "PYTHONPATH: $PYTHONPATH"
+
+# Tell register_atrnet.py where the dataset lives
+export ATRNET_DATA_DIR="$HOME/DiffDet4SAR-project/ATRNet-STAR-data"
+echo "ATRNET_DATA_DIR: $ATRNET_DATA_DIR"
+
+
 # --- Environment setup ---
 module load python/2023-3
 source activate diffdet4sar
 
-cd ~/DiffDet4SAR-project/DiffDet4SAR
+cd ~/DiffDet4SAR-project/DiffDet4SAR-PANDO
 mkdir -p pando/slurm_logs
 
 # Find the best/latest model checkpoint
