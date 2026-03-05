@@ -204,7 +204,11 @@ def visualize_samples(args):
     if args.input_dir:
         # Use specified directory
         input_path = Path(args.input_dir)
-        image_files = list(input_path.glob("*.tif")) + list(input_path.glob("*.jpg")) + list(input_path.glob("*.png"))
+        image_files = (
+            list(input_path.rglob("*.tif"))
+            + list(input_path.rglob("*.jpg"))
+            + list(input_path.rglob("*.png"))
+        )
     else:
         # Use random samples from test set
         test_data = DatasetCatalog.get("atrnet_star_test")
