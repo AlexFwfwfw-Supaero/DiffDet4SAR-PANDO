@@ -57,18 +57,21 @@ if [ -z "$WEIGHTS" ]; then
 fi
 
 echo "Using weights: $WEIGHTS"
+echo "Input dir: ${ATRNET_DATA_DIR}/Ground_Range/Amplitude_8bit/SOC_40classes/test"
+echo "Image count: $(find "${ATRNET_DATA_DIR}/Ground_Range/Amplitude_8bit/SOC_40classes/test" -name '*.tif' 2>/dev/null | wc -l) .tif files"
 
 # --- Run visualization ---
 python visualize_detections.py \
     --weights "$WEIGHTS" \
-    --input-dir ../ATRNet-STAR-data/Ground_Range/Amplitude_8bit/SOC_40classes/test \
+    --input-dir "${ATRNET_DATA_DIR}/Ground_Range/Amplitude_8bit/SOC_40classes/test" \
+    --data-dir "${ATRNET_DATA_DIR}" \
     --output-dir visualizations_pando \
     --num-samples 50 \
     --confidence-threshold 0.3
 
 echo ""
-echo "Visualizations saved to: ~/DiffDet4SAR-project/DiffDet4SAR/visualizations_pando/"
+echo "Visualizations saved to: ~/DiffDet4SAR-project/DiffDet4SAR-PANDO/visualizations_pando/"
 echo "Download them with:"
-echo "  scp -r a.jesus@pando:~/DiffDet4SAR-project/DiffDet4SAR/visualizations_pando/ ."
+echo "  scp -r a.jesus@pando:~/DiffDet4SAR-project/DiffDet4SAR-PANDO/visualizations_pando/ ."
 echo ""
 echo "Done! $(date)"
