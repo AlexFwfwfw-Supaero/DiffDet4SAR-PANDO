@@ -178,11 +178,32 @@ def read_image(file_name, format=None):
             supported image modes in PIL or "BGR"; float (0-1 for Y) for YUV-BT.601.
     """
     with PathManager.open(file_name, "rb") as f:
-        image = Image.open(f)
+        try:
+            image = Image.open(f)
+            # work around this bug: https://github.com/python-pillow/Pillow/issues/3973
+            image = _apply_exif_orientation(image)
+            return convert_PIL_to_numpy(image, format)
+        except Exception:
+            pass  # fall through to cv2 path for formats PIL cannot handle (e.g. 16-bit TIFFs)
 
-        # work around this bug: https://github.com/python-pillow/Pillow/issues/3973
-        image = _apply_exif_orientation(image)
-        return convert_PIL_to_numpy(image, format)
+    # cv2 fallback — handles 16-bit / unusual TIFF variants common in SAR datasets
+    import cv2 as _cv2
+    import numpy as _np
+    bgr = _cv2.imread(file_name, _cv2.IMREAD_UNCHANGED)
+    if bgr is None:
+        raise IOError(f"cv2 could not read image: {file_name}")
+    # Normalise to uint8
+    if bgr.dtype != _np.uint8:
+        bgr = _cv2.normalize(bgr, None, 0, 255, _cv2.NORM_MINMAX).astype(_np.uint8)
+    # Convert to the requested format
+    if format == "BGR":
+        img_np = bgr if bgr.ndim == 3 else _cv2.cvtColor(bgr, _cv2.COLOR_GRAY2BGR)
+    else:  # RGB or anything else — Detectron2 typically uses RGB internally
+        if bgr.ndim == 2:
+            img_np = _cv2.cvtColor(bgr, _cv2.COLOR_GRAY2RGB)
+        else:
+            img_np = _cv2.cvtColor(bgr, _cv2.COLOR_BGR2RGB)
+    return img_np
 
 
 def check_image_size(dataset_dict, image):
