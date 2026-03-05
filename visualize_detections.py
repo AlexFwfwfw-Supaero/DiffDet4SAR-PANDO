@@ -244,7 +244,8 @@ def visualize_samples(args):
             continue
         
         # Convert to 3-channel for Detectron2
-        image_rgb = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        # np.ascontiguousarray ensures compatibility with numpy 2.x + PyTorch
+        image_rgb = np.ascontiguousarray(cv2.cvtColor(image, cv2.COLOR_GRAY2RGB))
         
         # Run inference
         outputs = predictor(image_rgb)
