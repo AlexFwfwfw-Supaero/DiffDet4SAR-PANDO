@@ -33,7 +33,7 @@ class RotatedCOCOeval(COCOeval):
     @staticmethod
     def boxlist_to_tensor(boxlist, output_box_dim):
         if type(boxlist) == np.ndarray:
-            box_tensor = torch.from_numpy(boxlist)
+            box_tensor = torch.as_tensor(boxlist)
         elif type(boxlist) == list:
             if boxlist == []:
                 return torch.zeros((0, output_box_dim), dtype=torch.float32)

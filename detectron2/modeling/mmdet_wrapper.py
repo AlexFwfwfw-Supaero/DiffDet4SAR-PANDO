@@ -235,7 +235,7 @@ def _convert_mmdet_result(result, shape: Tuple[int, int]) -> Instances:
     else:
         bbox_result, segm_result = result, None
 
-    bboxes = torch.from_numpy(np.ascontiguousarray(np.vstack(bbox_result)))  # Nx5
+    bboxes = torch.as_tensor(np.ascontiguousarray(np.vstack(bbox_result)))  # Nx5
     bboxes, scores = bboxes[:, :4], bboxes[:, -1]
     labels = [
         torch.full((bbox.shape[0],), i, dtype=torch.int32) for i, bbox in enumerate(bbox_result)
@@ -248,7 +248,7 @@ def _convert_mmdet_result(result, shape: Tuple[int, int]) -> Instances:
 
     if segm_result is not None and len(labels) > 0:
         segm_result = list(itertools.chain(*segm_result))
-        segm_result = [torch.from_numpy(x) if isinstance(x, np.ndarray) else x for x in segm_result]
+        segm_result = [torch.as_tensor(x) if isinstance(x, np.ndarray) else x for x in segm_result]
         segm_result = torch.stack(segm_result, dim=0)
         inst.pred_masks = segm_result
     return inst

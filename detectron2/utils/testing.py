@@ -73,7 +73,7 @@ def get_sample_coco_image(tensor=True):
         )
     ret = read_image(file_name, format="BGR")
     if tensor:
-        ret = torch.from_numpy(np.ascontiguousarray(ret.transpose(2, 0, 1)))
+        ret = torch.as_tensor(np.ascontiguousarray(ret.transpose(2, 0, 1)))
     return ret
 
 

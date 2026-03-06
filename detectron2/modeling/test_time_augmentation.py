@@ -89,7 +89,7 @@ class DatasetMapperTTA:
         ret = []
         for aug in aug_candidates:
             new_image, tfms = apply_augmentations(aug, np.copy(numpy_image))
-            torch_image = torch.from_numpy(np.ascontiguousarray(new_image.transpose(2, 0, 1)))
+            torch_image = torch.as_tensor(np.ascontiguousarray(new_image.transpose(2, 0, 1)))
 
             dic = copy.deepcopy(dataset_dict)
             dic["transforms"] = pre_tfm + tfms
@@ -194,7 +194,7 @@ class GeneralizedRCNNWithTTA(nn.Module):
             ret = copy.copy(dataset_dict)
             if "image" not in ret:
                 image = read_image(ret.pop("file_name"), self.model.input_format)
-                image = torch.from_numpy(np.ascontiguousarray(image.transpose(2, 0, 1)))  # CHW
+                image = torch.as_tensor(np.ascontiguousarray(image.transpose(2, 0, 1)))  # CHW
                 ret["image"] = image
             if "height" not in ret and "width" not in ret:
                 ret["height"] = image.shape[1]
@@ -252,7 +252,7 @@ class GeneralizedRCNNWithTTA(nn.Module):
             # Need to inverse the transforms on boxes, to obtain results on original image
             pred_boxes = output.pred_boxes.tensor
             original_pred_boxes = tfm.inverse().apply_box(pred_boxes.cpu().numpy())
-            all_boxes.append(torch.from_numpy(original_pred_boxes).to(pred_boxes.device))
+            all_boxes.append(torch.as_tensor(original_pred_boxes).to(pred_boxes.device))
 
             all_scores.extend(output.scores)
             all_classes.extend(output.pred_classes)
@@ -284,7 +284,7 @@ class GeneralizedRCNNWithTTA(nn.Module):
         for input, tfm in zip(augmented_inputs, tfms):
             # Transform the target box to the augmented image's coordinate space
             pred_boxes = merged_instances.pred_boxes.tensor.cpu().numpy()
-            pred_boxes = torch.from_numpy(tfm.apply_box(pred_boxes))
+            pred_boxes = torch.as_tensor(tfm.apply_box(pred_boxes))
 
             aug_instances = Instances(
                 image_size=input["image"].shape[1:3],

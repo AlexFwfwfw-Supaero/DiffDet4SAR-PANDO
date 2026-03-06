@@ -127,7 +127,7 @@ class ResizeTransform(Transform):
             # PIL only supports uint8
             if any(x < 0 for x in img.strides):
                 img = np.ascontiguousarray(img)
-            img = torch.from_numpy(img)
+            img = torch.as_tensor(img)
             shape = list(img.shape)
             shape_4d = shape[:2] + [1] * (4 - len(shape)) + shape[2:]
             img = img.view(shape_4d).permute(2, 3, 0, 1)  # hw(c) -> nchw

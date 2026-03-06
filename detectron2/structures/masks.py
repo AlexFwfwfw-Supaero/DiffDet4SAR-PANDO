@@ -81,7 +81,7 @@ def rasterize_polygons_within_box(
 
     # 3. Rasterize the polygons with coco api
     mask = polygons_to_bitmask(polygons, mask_size, mask_size)
-    mask = torch.from_numpy(mask)
+    mask = torch.as_tensor(mask)
     return mask
 
 
@@ -175,7 +175,7 @@ class BitMasks:
             polygon_masks = polygon_masks.polygons
         masks = [polygons_to_bitmask(p, height, width) for p in polygon_masks]
         if len(masks):
-            return BitMasks(torch.stack([torch.from_numpy(x) for x in masks]))
+            return BitMasks(torch.stack([torch.as_tensor(x) for x in masks]))
         else:
             return BitMasks(torch.empty(0, height, width, dtype=torch.bool))
 
@@ -327,7 +327,7 @@ class PolygonMasks:
             minxy = torch.as_tensor([float("inf"), float("inf")], dtype=torch.float32)
             maxxy = torch.zeros(2, dtype=torch.float32)
             for polygon in polygons_per_instance:
-                coords = torch.from_numpy(polygon).view(-1, 2).to(dtype=torch.float32)
+                coords = torch.as_tensor(polygon).view(-1, 2).to(dtype=torch.float32)
                 minxy = torch.min(minxy, torch.min(coords, dim=0).values)
                 maxxy = torch.max(maxxy, torch.max(coords, dim=0).values)
             boxes[idx, :2] = minxy
@@ -343,7 +343,7 @@ class PolygonMasks:
                 a BoolTensor which represents whether each mask is empty (False) or not (True).
         """
         keep = [1 if len(polygon) > 0 else 0 for polygon in self.polygons]
-        return torch.from_numpy(np.ascontiguousarray(np.asarray(keep, dtype=bool)))
+        return torch.as_tensor(np.ascontiguousarray(np.asarray(keep, dtype=bool)))
 
     def __getitem__(self, item: Union[int, slice, List[int], torch.BoolTensor]) -> "PolygonMasks":
         """
