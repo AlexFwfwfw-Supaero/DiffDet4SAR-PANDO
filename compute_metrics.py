@@ -41,11 +41,11 @@ except ImportError:
 
 def compute_coco_metrics(gt_json: str, pred_json: str):
     """Return COCOeval object (already evaluated) + ordered category list."""
+    import types
+
     coco_gt = COCO(gt_json)
 
-    # Sanitize predictions: pycocotools' Cython extension requires plain Python
-    # floats for bbox and score — numpy scalar types trigger:
-    #   TypeError: Cannot convert numpy.ndarray to numpy.ndarray
+    # Sanitize predictions: ensure plain Python floats in bbox/score.
     with open(pred_json) as f:
         _preds = json.load(f)
     for p in _preds:
@@ -55,6 +55,57 @@ def compute_coco_metrics(gt_json: str, pred_json: str):
     coco_dt = coco_gt.loadRes(_preds)
 
     evaluator = COCOeval(coco_gt, coco_dt, iouType="bbox")
+
+    # Patch computeIoU with a pure-NumPy implementation that bypasses the
+    # Cython maskUtils.iou call.  pycocotools compiled against NumPy 1.x
+    # raises "TypeError: Cannot convert numpy.ndarray to numpy.ndarray" when
+    # run with NumPy 2.x because of a Cython ABI mismatch.
+    def _computeIoU_numpy(self, imgId, catId):
+        p = self.params
+        if p.useCats:
+            gt = self._gts[imgId, catId]
+            dt = self._dts[imgId, catId]
+        else:
+            gt = [_ for cId in p.catIds for _ in self._gts[imgId, cId]]
+            dt = [_ for cId in p.catIds for _ in self._dts[imgId, cId]]
+        if len(gt) == 0 and len(dt) == 0:
+            return []
+        inds = np.argsort([-d["score"] for d in dt], kind="mergesort")
+        dt = [dt[i] for i in inds]
+        if len(dt) > p.maxDets[-1]:
+            dt = dt[0:p.maxDets[-1]]
+
+        def _xywh_to_xyxy(boxes):
+            a = np.asarray(boxes, dtype=np.float64)
+            a[:, 2] += a[:, 0]
+            a[:, 3] += a[:, 1]
+            return a
+
+        d_boxes = _xywh_to_xyxy([d["bbox"] for d in dt])   # [D, 4]
+        g_boxes = _xywh_to_xyxy([g["bbox"] for g in gt])   # [G, 4]
+
+        # Compute IoU matrix [D, G]
+        inter_x1 = np.maximum(d_boxes[:, 0:1], g_boxes[:, 0])
+        inter_y1 = np.maximum(d_boxes[:, 1:2], g_boxes[:, 1])
+        inter_x2 = np.minimum(d_boxes[:, 2:3], g_boxes[:, 2])
+        inter_y2 = np.minimum(d_boxes[:, 3:4], g_boxes[:, 3])
+        inter_w  = np.maximum(0.0, inter_x2 - inter_x1)
+        inter_h  = np.maximum(0.0, inter_y2 - inter_y1)
+        inter    = inter_w * inter_h
+
+        area_d = (d_boxes[:, 2] - d_boxes[:, 0]) * (d_boxes[:, 3] - d_boxes[:, 1])
+        area_g = (g_boxes[:, 2] - g_boxes[:, 0]) * (g_boxes[:, 3] - g_boxes[:, 1])
+
+        # For iscrowd=1 GTs, denominator is detection area (not union)
+        iscrowd = np.array([int(o["iscrowd"]) for o in gt], dtype=bool)
+        union = area_d[:, None] + area_g[None, :] - inter
+        union[:, iscrowd] = area_d[:, None].repeat(iscrowd.sum(), axis=1)
+
+        iou = inter / np.where(union > 0, union, 1e-9)
+        return iou
+
+    evaluator.computeIoU = types.MethodType(_computeIoU_numpy, evaluator)
+
     evaluator.evaluate()
     evaluator.accumulate()
     evaluator.summarize()
