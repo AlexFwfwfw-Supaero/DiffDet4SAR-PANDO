@@ -157,62 +157,101 @@ def per_class_ap(evaluator: "COCOeval", coco_gt: "COCO"):
 # Confusion matrix
 # ─────────────────────────────────────────────────────────────────────────────
 
-def build_confusion_matrix(gt_json: str, pred_json: str, iou_threshold: float = 0.5):
+# ATRNet-STAR military vehicle classes (IDs vary by annotation file;
+# these are resolved dynamically by name matching at runtime).
+MILITARY_VEHICLE_NAMES = [
+    "2S1", "BMP2", "BRDM_2", "BTR_60", "BTR70",
+    "D7", "T62", "T72", "ZIL131", "ZSU_23_4",
+]
+
+
+def build_confusion_matrix(
+    gt_json: str,
+    pred_json: str,
+    iou_threshold: float = 0.5,
+    filter_cat_ids=None,
+    score_threshold: float = 0.0,
+):
     """
     Build an (N+1) x (N+1) confusion matrix where index N is 'background'.
     Rows  = ground-truth class (+ background = missed detections)
     Cols  = predicted class    (+ background = false positives)
+
+    filter_cat_ids : if given, only consider GT/predictions for those category
+                     IDs.  The resulting CM covers only those classes.
+    score_threshold: discard predictions with score < this value.
     """
     coco_gt = COCO(gt_json)
     with open(pred_json) as f:
         predictions = json.load(f)
 
-    cat_ids = sorted(coco_gt.getCatIds())
-    n_cls = len(cat_ids)
-    cat_to_idx = {c: i for i, c in enumerate(cat_ids)}
-    id_to_name = {c["id"]: c["name"] for c in coco_gt.dataset["categories"]}
+    # Optionally restrict to a subset of classes.
+    if filter_cat_ids is not None:
+        active_cat_ids = sorted(filter_cat_ids)
+    else:
+        active_cat_ids = sorted(coco_gt.getCatIds())
+
+    active_cat_set = set(active_cat_ids)
+    n_cls = len(active_cat_ids)
+    cat_to_idx = {c: i for i, c in enumerate(active_cat_ids)}
+    id_to_name  = {c["id"]: c["name"] for c in coco_gt.dataset["categories"]}
 
     cm = np.zeros((n_cls + 1, n_cls + 1), dtype=np.int64)  # +1 for background
 
-    # Group predictions by image
+    # Group predictions by image (apply score threshold here).
+    # NOTE: pass imgIds as a list to avoid a pycocotools bug where string image
+    # IDs are iterated character-by-character when passed as a bare scalar.
     preds_by_image = {}
     for p in predictions:
+        if p["score"] < score_threshold:
+            continue
+        if filter_cat_ids is not None and p["category_id"] not in active_cat_set:
+            continue
         preds_by_image.setdefault(p["image_id"], []).append(p)
 
     img_ids = coco_gt.getImgIds()
     for img_id in img_ids:
-        ann_ids = coco_gt.getAnnIds(imgIds=img_id)
-        gt_anns = coco_gt.loadAnns(ann_ids)
+        # ↓ wrap in list — bare string IDs are mishandled by _isArrayLike in
+        #   some pycocotools builds, causing getAnnIds to return [].
+        ann_ids = coco_gt.getAnnIds(imgIds=[img_id])
+        gt_anns_all = coco_gt.loadAnns(ann_ids)
+
+        # Filter GT to active classes only.
+        gt_anns = [a for a in gt_anns_all if a["category_id"] in active_cat_set]
         preds   = preds_by_image.get(img_id, [])
 
         if not gt_anns and not preds:
             continue
 
-        # Convert GT boxes xywh → xyxy
-        gt_boxes  = np.array([[a["bbox"][0], a["bbox"][1],
-                                a["bbox"][0] + a["bbox"][2],
-                                a["bbox"][1] + a["bbox"][3]] for a in gt_anns], dtype=float)
-        gt_cats   = np.array([a["category_id"] for a in gt_anns])
-
-        # Convert pred boxes xywh → xyxy
-        if preds:
-            pd_boxes  = np.array([[p["bbox"][0], p["bbox"][1],
-                                    p["bbox"][0] + p["bbox"][2],
-                                    p["bbox"][1] + p["bbox"][3]] for p in preds], dtype=float)
-            pd_cats   = np.array([p["category_id"] for p in preds])
-            pd_scores = np.array([p["score"] for p in preds])
+        # Build GT arrays (xywh → xyxy).
+        if gt_anns:
+            gt_boxes = np.array(
+                [[a["bbox"][0], a["bbox"][1],
+                  a["bbox"][0] + a["bbox"][2],
+                  a["bbox"][1] + a["bbox"][3]] for a in gt_anns], dtype=float)
+            gt_cats  = np.array([a["category_id"] for a in gt_anns])
         else:
-            pd_boxes  = np.zeros((0, 4))
-            pd_cats   = np.array([], dtype=int)
-            pd_scores = np.array([])
+            gt_boxes = np.zeros((0, 4))
+            gt_cats  = np.array([], dtype=int)
 
-        matched_gt  = set()
-        matched_pd  = set()
+        # Build prediction arrays (xywh → xyxy).
+        if preds:
+            pd_boxes = np.array(
+                [[p["bbox"][0], p["bbox"][1],
+                  p["bbox"][0] + p["bbox"][2],
+                  p["bbox"][1] + p["bbox"][3]] for p in preds], dtype=float)
+            pd_cats  = np.array([p["category_id"] for p in preds])
+        else:
+            pd_boxes = np.zeros((0, 4))
+            pd_cats  = np.array([], dtype=int)
+
+        matched_gt = set()
+        matched_pd = set()
 
         if len(gt_boxes) and len(pd_boxes):
             iou_mat = _box_iou(gt_boxes, pd_boxes)  # [G, P]
 
-            # Greedy matching: highest IoU first
+            # Greedy matching: highest IoU first.
             flat_idx = np.argsort(-iou_mat.ravel())
             for fi in flat_idx:
                 gi, pi = divmod(fi, len(pd_boxes))
@@ -222,23 +261,23 @@ def build_confusion_matrix(gt_json: str, pred_json: str, iou_threshold: float = 
                     continue
                 matched_gt.add(gi)
                 matched_pd.add(pi)
-                gt_idx = cat_to_idx[gt_cats[gi]]
-                pd_idx = cat_to_idx[pd_cats[pi]]
+                gt_idx = cat_to_idx[int(gt_cats[gi])]
+                pd_idx = cat_to_idx[int(pd_cats[pi])]
                 cm[gt_idx, pd_idx] += 1
 
-        # Unmatched GT → background column (missed detection)
+        # Unmatched GT → background column (missed detection).
         for gi in range(len(gt_anns)):
             if gi not in matched_gt:
-                gt_idx = cat_to_idx[gt_cats[gi]]
+                gt_idx = cat_to_idx[int(gt_cats[gi])]
                 cm[gt_idx, n_cls] += 1
 
-        # Unmatched predictions → background row (false positive)
+        # Unmatched predictions → background row (false positive).
         for pi in range(len(preds)):
             if pi not in matched_pd:
-                pd_idx = cat_to_idx[pd_cats[pi]]
+                pd_idx = cat_to_idx[int(pd_cats[pi])]
                 cm[n_cls, pd_idx] += 1
 
-    names = [id_to_name[c] for c in cat_ids] + ["background"]
+    names = [id_to_name[c] for c in active_cat_ids] + ["background"]
     return cm, names
 
 
@@ -298,9 +337,7 @@ def plot_per_class_ap(rows, output_path):
     print(f"Saved: {output_path}")
 
 
-def plot_confusion_matrix(cm, names, output_path, normalise=True):
-    # For readability, show only class-vs-class (drop background row/col for the heatmap body,
-    # but note background counts as a separate row/column)
+def plot_confusion_matrix(cm, names, output_path, normalise=True, title_extra=""):
     n = len(names)  # includes background
 
     if normalise:
@@ -325,7 +362,7 @@ def plot_confusion_matrix(cm, names, output_path, normalise=True):
     ax.set_yticklabels(names, fontsize=fontsize)
     ax.set_ylabel("Ground Truth")
     ax.set_xlabel("Predicted")
-    ax.set_title(f"Confusion Matrix{title_suffix}\nATRNet-STAR — DiffDet4SAR")
+    ax.set_title(f"Confusion Matrix{title_suffix}{title_extra}\nATRNet-STAR — DiffDet4SAR")
 
     # Annotate cells only if n ≤ 20 (otherwise too crowded)
     if n <= 20:
@@ -360,6 +397,14 @@ def main():
                         help="Directory to save plots and CSV")
     parser.add_argument("--iou-threshold", type=float, default=0.5,
                         help="IoU threshold for confusion matrix matching (default 0.5)")
+    parser.add_argument("--score-threshold", type=float, default=0.0,
+                        help="Minimum prediction score for confusion matrix (default 0.0)")
+    parser.add_argument("--tank-classes", nargs="+", default=None,
+                        metavar="NAME",
+                        help="Class names to include in the military-vehicle confusion "
+                             "matrix. Defaults to the 10 known military classes in "
+                             "ATRNet-STAR (2S1 BMP2 BRDM_2 BTR_60 BTR70 D7 T62 T72 "
+                             "ZIL131 ZSU_23_4). Pass a subset to restrict further.")
     args = parser.parse_args()
 
     # Resolve annotation path
@@ -429,20 +474,58 @@ def main():
     # Plot bar chart
     plot_per_class_ap(rows, out / "per_class_ap.png")
 
-    # ── 2. Confusion matrix ──────────────────────────────────────────────────
-    print(f"\n── Confusion Matrix (IoU ≥ {args.iou_threshold}) ─────────────────────────────")
+    # ── 2. Confusion matrix — all classes ───────────────────────────────────
+    print(f"\n── Confusion Matrix — all classes (IoU ≥ {args.iou_threshold}) ──────────")
     print("Building confusion matrix (this may take a minute for 29k images)...")
-    cm, names = build_confusion_matrix(args.annotations, args.predictions, args.iou_threshold)
+    cm_all, names_all = build_confusion_matrix(
+        args.annotations, args.predictions,
+        iou_threshold=args.iou_threshold,
+        score_threshold=args.score_threshold,
+    )
 
-    # Save raw counts
     cm_csv = out / "confusion_matrix.csv"
     with open(cm_csv, "w") as f:
-        f.write("," + ",".join(names) + "\n")
-        for i, name in enumerate(names):
-            f.write(name + "," + ",".join(str(v) for v in cm[i]) + "\n")
+        f.write("," + ",".join(names_all) + "\n")
+        for i, name in enumerate(names_all):
+            f.write(name + "," + ",".join(str(v) for v in cm_all[i]) + "\n")
     print(f"Saved: {cm_csv}")
+    plot_confusion_matrix(cm_all, names_all, out / "confusion_matrix.png", normalise=True)
 
-    plot_confusion_matrix(cm, names, out / "confusion_matrix.png", normalise=True)
+    # ── 3. Confusion matrix — military vehicles only ─────────────────────────
+    # Resolve which category IDs count as military vehicles.
+    all_cats = {c["name"]: c["id"] for c in coco_gt.dataset["categories"]}
+    requested = args.tank_classes if args.tank_classes is not None else MILITARY_VEHICLE_NAMES
+    tank_cat_ids = [all_cats[n] for n in requested if n in all_cats]
+    missing = [n for n in requested if n not in all_cats]
+    if missing:
+        print(f"Warning: tank class names not found in annotation file and skipped: {missing}")
+
+    if tank_cat_ids:
+        print(f"\n── Confusion Matrix — military vehicles ({len(tank_cat_ids)} classes, "
+              f"IoU ≥ {args.iou_threshold}) ──")
+        print("Classes:", [n for n in requested if n in all_cats])
+        print("Building military-vehicle confusion matrix...")
+        cm_mil, names_mil = build_confusion_matrix(
+            args.annotations, args.predictions,
+            iou_threshold=args.iou_threshold,
+            filter_cat_ids=tank_cat_ids,
+            score_threshold=args.score_threshold,
+        )
+
+        mil_csv = out / "confusion_matrix_military.csv"
+        with open(mil_csv, "w") as f:
+            f.write("," + ",".join(names_mil) + "\n")
+            for i, name in enumerate(names_mil):
+                f.write(name + "," + ",".join(str(v) for v in cm_mil[i]) + "\n")
+        print(f"Saved: {mil_csv}")
+        plot_confusion_matrix(
+            cm_mil, names_mil,
+            out / "confusion_matrix_military.png",
+            normalise=True,
+            title_extra=" — Military Vehicles",
+        )
+    else:
+        print("Warning: no valid tank/military-vehicle classes found; skipping military CM.")
 
     print("\nDone.")
 
