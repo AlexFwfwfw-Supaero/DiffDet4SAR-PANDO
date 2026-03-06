@@ -75,11 +75,16 @@ def compute_coco_metrics(gt_json: str, pred_json: str):
         if len(dt) > p.maxDets[-1]:
             dt = dt[0:p.maxDets[-1]]
 
+        # Return zero-IoU matrix when one side is empty (avoids reshape crash).
+        if len(dt) == 0 or len(gt) == 0:
+            return np.zeros((len(dt), len(gt)), dtype=np.float64)
+
         def _xywh_to_xyxy(boxes):
-            a = np.asarray(boxes, dtype=np.float64)
-            a[:, 2] += a[:, 0]
-            a[:, 3] += a[:, 1]
-            return a
+            """Convert list of [x,y,w,h] to [D,4] xyxy float64 array."""
+            return np.array(
+                [[b[0], b[1], b[0] + b[2], b[1] + b[3]] for b in boxes],
+                dtype=np.float64,
+            )
 
         d_boxes = _xywh_to_xyxy([d["bbox"] for d in dt])   # [D, 4]
         g_boxes = _xywh_to_xyxy([g["bbox"] for g in gt])   # [G, 4]
@@ -91,15 +96,16 @@ def compute_coco_metrics(gt_json: str, pred_json: str):
         inter_y2 = np.minimum(d_boxes[:, 3:4], g_boxes[:, 3])
         inter_w  = np.maximum(0.0, inter_x2 - inter_x1)
         inter_h  = np.maximum(0.0, inter_y2 - inter_y1)
-        inter    = inter_w * inter_h
+        inter    = inter_w * inter_h                         # [D, G]
 
-        area_d = (d_boxes[:, 2] - d_boxes[:, 0]) * (d_boxes[:, 3] - d_boxes[:, 1])
-        area_g = (g_boxes[:, 2] - g_boxes[:, 0]) * (g_boxes[:, 3] - g_boxes[:, 1])
+        area_d = (d_boxes[:, 2] - d_boxes[:, 0]) * (d_boxes[:, 3] - d_boxes[:, 1])  # [D]
+        area_g = (g_boxes[:, 2] - g_boxes[:, 0]) * (g_boxes[:, 3] - g_boxes[:, 1])  # [G]
 
         # For iscrowd=1 GTs, denominator is detection area (not union)
-        iscrowd = np.array([int(o["iscrowd"]) for o in gt], dtype=bool)
-        union = area_d[:, None] + area_g[None, :] - inter
-        union[:, iscrowd] = area_d[:, None].repeat(iscrowd.sum(), axis=1)
+        iscrowd = np.array([int(o["iscrowd"]) for o in gt], dtype=bool)  # [G]
+        union = area_d[:, None] + area_g[None, :] - inter               # [D, G]
+        if iscrowd.any():
+            union[:, iscrowd] = area_d[:, None]  # broadcast [D,1] → [D, #crowd]
 
         iou = inter / np.where(union > 0, union, 1e-9)
         return iou
