@@ -1,16 +1,16 @@
 #!/bin/bash
 ###############################################################################
-# PANDO Supercomputer - Military Vehicle Fine-tune (GPU 1 of 2)
+# PANDO Supercomputer - Military Vehicle Fine-tune (from 50-class checkpoint)
 #
-# Fine-tunes from the LATEST checkpoint produced by the 40-class training.
-# The backbone/neck weights are reused; the classification head is re-initialised
-# because the class count changes from 40 → 10 (detectron2 skips shape-mismatched
-# weights automatically and logs a warning — that is expected).
+# Fine-tunes from the LATEST checkpoint produced by the full 50-class training
+# (train_military_scratch.slurm → output_atrnet_star_scratch/).
+# The backbone/neck/box-head weights are reused; the classification head is
+# re-initialised because the class count changes from 50 → 10 (detectron2
+# skips shape-mismatched weights automatically — that is expected).
 #
-# Submit with:  sbatch pando/train_military_finetune.slurm
-# Run both jobs at once (one per GPU):
-#   sbatch pando/train_military_finetune.slurm
-#   sbatch pando/train_military_scratch.slurm
+# Run order:
+#   1. sbatch pando/train_military_scratch.slurm   (50-class, produces warm checkpoint)
+#   2. sbatch pando/train_military_finetune.slurm  (10-class military, uses that checkpoint)
 ###############################################################################
 
 #SBATCH --job-name=diffdet-mil-ft
@@ -27,7 +27,7 @@
 set -e
 
 echo "=============================================="
-echo " DiffDet4SAR — Military Fine-tune (from 40-class checkpoint)"
+echo " DiffDet4SAR — Military Fine-tune (from 50-class checkpoint)"
 echo "=============================================="
 echo " Job ID:    $SLURM_JOB_ID"
 echo " Node:      $SLURM_NODELIST"
@@ -59,25 +59,32 @@ echo ">>> Preparing military-only annotation files..."
 python prepare_military_dataset.py
 echo ""
 
-# --- Find the latest checkpoint from the 40-class training run ---
-CKPT_DIR="output_atrnet_star_pando"
+# --- Find the latest checkpoint from the 50-class training run ---
+# Primary: output_atrnet_star_scratch/ (from train_military_scratch.slurm)
+# Fallback: output_atrnet_star_pando/  (older 40-class run)
+CKPT_DIR="output_atrnet_star_scratch"
 LATEST_CKPT=$(ls -t "${CKPT_DIR}"/model_*.pth 2>/dev/null | head -1)
 
 if [ -z "$LATEST_CKPT" ]; then
-    echo "ERROR: No checkpoint found in ${CKPT_DIR}/"
-    echo "Make sure the 40-class training has produced at least one checkpoint."
+    echo "WARNING: No checkpoint found in ${CKPT_DIR}/ — falling back to output_atrnet_star_pando/"
+    CKPT_DIR="output_atrnet_star_pando"
+    LATEST_CKPT=$(ls -t "${CKPT_DIR}"/model_*.pth 2>/dev/null | head -1)
+fi
+
+if [ -z "$LATEST_CKPT" ]; then
+    echo "ERROR: No checkpoint found in output_atrnet_star_scratch/ or output_atrnet_star_pando/"
+    echo "Run train_military_scratch.slurm first to produce a 50-class checkpoint."
     exit 1
 fi
 
 echo ">>> Using checkpoint: $LATEST_CKPT"
 echo ""
 
-# --- Fine-tune ---
-# SOLVER overrides: fewer iterations since the backbone is already pretrained.
-#   STEPS and MAX_ITER decay schedule:
-#     20 000 → first LR decay
-#     26 000 → second LR decay
-#     30 000 → end
+# --- Fine-tune on military-only (10 classes) ---
+# Fewer iterations since the backbone is already SAR-pretrained on all 50 classes.
+#   20 000 → first LR decay
+#   26 000 → second LR decay
+#   30 000 → end
 python train_net.py \
     --config-file configs/diffdet.atrnet.military.yaml \
     --num-gpus 1 \
