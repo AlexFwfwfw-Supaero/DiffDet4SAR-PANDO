@@ -365,16 +365,19 @@ class Checkpointer:
         # properties.
         for k in list(state_dict.keys()):
             v = state_dict[k]
-            if not isinstance(v, np.ndarray) and not isinstance(v, torch.Tensor):
+            if not isinstance(v, (np.ndarray, torch.Tensor)) and not hasattr(v, "__array__"):
                 raise ValueError(
                     "Unsupported type found in checkpoint! {}: {}".format(k, type(v))
                 )
             if not isinstance(v, torch.Tensor):
-                # np.array(v) re-wraps the array under the current NumPy version,
-                # fixing "TypeError: expected np.ndarray (got numpy.ndarray)" that
-                # occurs when loading .pkl files pickled with NumPy < 2.0 under
-                # NumPy 2.0+ (class identity change in the C extension).
-                state_dict[k] = torch.from_numpy(np.array(v))
+                # Use torch.tensor() instead of torch.from_numpy() to avoid a
+                # PyTorch C-extension type-identity check that fails when PyTorch
+                # was compiled against NumPy 1.x but the runtime is NumPy 2.x
+                # ("TypeError: expected np.ndarray (got numpy.ndarray)").
+                # torch.tensor() goes through Python's __array__ protocol and is
+                # NumPy-version agnostic.  The copy overhead is acceptable since
+                # this only runs once during checkpoint loading.
+                state_dict[k] = torch.tensor(np.asarray(v))
 
 
 class PeriodicCheckpointer:
