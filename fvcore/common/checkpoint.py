@@ -370,7 +370,11 @@ class Checkpointer:
                     "Unsupported type found in checkpoint! {}: {}".format(k, type(v))
                 )
             if not isinstance(v, torch.Tensor):
-                state_dict[k] = torch.from_numpy(v)
+                # np.array(v) re-wraps the array under the current NumPy version,
+                # fixing "TypeError: expected np.ndarray (got numpy.ndarray)" that
+                # occurs when loading .pkl files pickled with NumPy < 2.0 under
+                # NumPy 2.0+ (class identity change in the C extension).
+                state_dict[k] = torch.from_numpy(np.array(v))
 
 
 class PeriodicCheckpointer:
