@@ -343,7 +343,7 @@ class PolygonMasks:
                 a BoolTensor which represents whether each mask is empty (False) or not (True).
         """
         keep = [1 if len(polygon) > 0 else 0 for polygon in self.polygons]
-        return torch.from_numpy(np.asarray(keep, dtype=bool))
+        return torch.from_numpy(np.ascontiguousarray(np.asarray(keep, dtype=bool)))
 
     def __getitem__(self, item: Union[int, slice, List[int], torch.BoolTensor]) -> "PolygonMasks":
         """

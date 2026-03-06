@@ -65,7 +65,7 @@ class BoxMode(IntEnum):
         else:
             # avoid modifying the input box
             if is_numpy:
-                arr = torch.from_numpy(np.asarray(box)).clone()
+                arr = torch.from_numpy(np.ascontiguousarray(np.asarray(box))).clone()
             else:
                 arr = box.clone()
 
