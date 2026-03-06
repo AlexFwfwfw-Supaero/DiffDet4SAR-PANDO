@@ -54,7 +54,9 @@ class BoxMode(IntEnum):
             return box
 
         original_type = type(box)
-        is_numpy = isinstance(box, np.ndarray)
+        # Use hasattr instead of isinstance to handle numpy 2.x arrays returned
+        # by tensor.numpy() which may not pass isinstance(x, np.ndarray) reliably.
+        is_numpy = not isinstance(box, torch.Tensor) and hasattr(box, "__array__")
         single_box = isinstance(box, (list, tuple))
         if single_box:
             assert len(box) == 4 or len(box) == 5, (
@@ -63,11 +65,9 @@ class BoxMode(IntEnum):
             )
             arr = torch.tensor(box)[None, :]
         else:
-            # avoid modifying the input box
-            if is_numpy:
-                arr = torch.as_tensor(np.ascontiguousarray(np.asarray(box))).clone()
-            else:
-                arr = box.clone()
+            # avoid modifying the input box; torch.as_tensor handles both
+            # numpy arrays and tensors regardless of numpy version
+            arr = torch.as_tensor(np.array(box) if is_numpy else box).clone()
 
         assert to_mode not in [BoxMode.XYXY_REL, BoxMode.XYWH_REL] and from_mode not in [
             BoxMode.XYXY_REL,
