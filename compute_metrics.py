@@ -42,7 +42,17 @@ except ImportError:
 def compute_coco_metrics(gt_json: str, pred_json: str):
     """Return COCOeval object (already evaluated) + ordered category list."""
     coco_gt = COCO(gt_json)
-    coco_dt = coco_gt.loadRes(pred_json)
+
+    # Sanitize predictions: pycocotools' Cython extension requires plain Python
+    # floats for bbox and score — numpy scalar types trigger:
+    #   TypeError: Cannot convert numpy.ndarray to numpy.ndarray
+    with open(pred_json) as f:
+        _preds = json.load(f)
+    for p in _preds:
+        p["bbox"]  = [float(x) for x in p["bbox"]]
+        p["score"] = float(p["score"])
+
+    coco_dt = coco_gt.loadRes(_preds)
 
     evaluator = COCOeval(coco_gt, coco_dt, iouType="bbox")
     evaluator.evaluate()
