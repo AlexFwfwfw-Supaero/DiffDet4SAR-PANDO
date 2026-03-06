@@ -415,7 +415,7 @@ def main():
             data_dir = (script_dir / ".." / "ATRNet-STAR-data").resolve()
         args.annotations = str(
             Path(data_dir) / "Ground_Range" / "annotation_coco"
-            / "SOC_40classes" / "annotations" / "test.json"
+            / "SOC_50classes" / "annotations" / "test.json"
         )
 
     print(f"Annotations : {args.annotations}")

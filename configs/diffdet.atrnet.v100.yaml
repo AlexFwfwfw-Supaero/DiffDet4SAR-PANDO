@@ -7,7 +7,7 @@ MODEL:
     STRIDE_IN_1X1: False
   DiffusionDet:
     NUM_PROPOSALS: 500  # Full 500 proposals - V100 32GB can handle it
-    NUM_CLASSES: 40     # ATRNet-STAR has 40 vehicle types
+    NUM_CLASSES: 50     # ATRNet-STAR SOC_50classes: 40 civilian + 10 military vehicles
 DATASETS:
   TRAIN: ("atrnet_star_train",)
   TEST: ("atrnet_star_test",)
