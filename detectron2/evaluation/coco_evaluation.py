@@ -13,6 +13,26 @@ import pycocotools.mask as mask_util
 import torch
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
+
+# NumPy 2.x / pycocotools compatibility shim.
+# pycocotools is compiled against NumPy 1.x and uses Cython typed memoryviews
+# (np.ndarray[dtype, ndim=N]) whose C-level type check fails for NumPy 2.x
+# arrays, producing "TypeError: Cannot convert numpy.ndarray to numpy.ndarray".
+# Wrapping mask_util.iou to convert ndarrays → lists routes through the
+# pure-Python list branch inside the Cython extension, which works with any
+# NumPy version.  This patch is applied once at module import time and is
+# transparent to all callers (pycocotools.cocoeval imports the same module
+# object via `from pycocotools import mask as maskUtils`).
+_pycocotools_iou_orig = mask_util.iou
+
+def _pycocotools_iou_compat(dt, gt, iscrowd):
+    if isinstance(dt, np.ndarray):
+        dt = dt.tolist()
+    if isinstance(gt, np.ndarray):
+        gt = gt.tolist()
+    return _pycocotools_iou_orig(dt, gt, iscrowd)
+
+mask_util.iou = _pycocotools_iou_compat
 from tabulate import tabulate
 
 import detectron2.utils.comm as comm
